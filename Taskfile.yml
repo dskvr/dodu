@@ -1,0 +1,119 @@
+version: '3'
+
+vars:
+  BIN_NAME: dodu
+  BIN_DIR: bin
+  PKG: github.com/tyutyutyu/dodu
+  GOLANGCI_LINT_VERSION: v2.1.6
+  VERSION:
+    sh: cat VERSION 2>/dev/null || echo "0.0.0"
+  COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "none"
+  DATE:
+    sh: date -u +%Y-%m-%dT%H:%M:%SZ
+  LDFLAGS: >-
+    -s -w
+    -X main.version={{.VERSION}}
+    -X main.commit={{.COMMIT}}
+    -X main.date={{.DATE}}
+
+tasks:
+  default:
+    cmds:
+      - task: verify
+
+  verify:
+    desc: Run lint, tests, and build (CI gate).
+    cmds:
+      - task: tidy-check
+      - task: lint
+      - task: test
+      - task: build
+
+  tidy:
+    desc: Ensure go.mod / go.sum are tidy.
+    cmds:
+      - go mod tidy
+
+  tidy-check:
+    desc: Fail if go.mod / go.sum are not tidy.
+    cmds:
+      - go mod tidy -diff
+
+  lint:
+    desc: Run golangci-lint (auto-installs if missing).
+    cmds:
+      - task: lint-install
+      - "{{.GOLANGCI_LINT_BIN}} run ./..."
+    vars:
+      GOLANGCI_LINT_BIN:
+        sh: command -v golangci-lint 2>/dev/null || echo "$(go env GOPATH)/bin/golangci-lint"
+
+  lint-install:
+    desc: Install golangci-lint if not present.
+    cmds:
+      - |
+        if ! command -v golangci-lint >/dev/null 2>&1 && [ ! -x "$(go env GOPATH)/bin/golangci-lint" ]; then
+          echo ">> Installing golangci-lint {{.GOLANGCI_LINT_VERSION}}"
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
+            | sh -s -- -b "$(go env GOPATH)/bin" {{.GOLANGCI_LINT_VERSION}}
+        fi
+    status:
+      - command -v golangci-lint >/dev/null 2>&1 || test -x "$(go env GOPATH)/bin/golangci-lint"
+
+  test:
+    desc: Run unit tests with race detector.
+    cmds:
+      - go test -race -count=1 ./...
+
+  test-cover:
+    desc: Run tests with coverage profile.
+    cmds:
+      - go test -race -count=1 -coverprofile=coverage.out ./...
+      - go tool cover -func=coverage.out | tail -1
+
+  build:
+    desc: Build the dodu binary into ./bin.
+    cmds:
+      - mkdir -p {{.BIN_DIR}}
+      - go build -ldflags="{{.LDFLAGS}}" -o {{.BIN_DIR}}/{{.BIN_NAME}} ./cmd/dodu
+    sources:
+      - "**/*.go"
+      - go.mod
+      - go.sum
+    generates:
+      - "{{.BIN_DIR}}/{{.BIN_NAME}}"
+
+  run:
+    desc: Run dodu locally.
+    deps: [build]
+    cmds:
+      - ./{{.BIN_DIR}}/{{.BIN_NAME}} {{.CLI_ARGS}}
+
+  clean:
+    desc: Remove build artifacts.
+    cmds:
+      - rm -rf {{.BIN_DIR}} coverage.out dist
+
+  version-bump:
+    desc: 'Bump VERSION file. Usage: task version-bump -- patch|minor|major'
+    cmds:
+      - |
+        set -eu
+        kind="{{.CLI_ARGS}}"
+        case "$kind" in
+          patch|minor|major) ;;
+          *) echo "usage: task version-bump -- patch|minor|major" >&2; exit 2;;
+        esac
+        cur=$(cat VERSION 2>/dev/null || echo "0.0.0")
+        IFS=. read -r MAJ MIN PAT <<EOF
+        $cur
+        EOF
+        case "$kind" in
+          major) MAJ=$((MAJ+1)); MIN=0; PAT=0 ;;
+          minor) MIN=$((MIN+1)); PAT=0 ;;
+          patch) PAT=$((PAT+1)) ;;
+        esac
+        new="$MAJ.$MIN.$PAT"
+        echo "$new" > VERSION
+        echo "Bumped: $cur -> $new"

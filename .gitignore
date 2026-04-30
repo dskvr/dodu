@@ -1,0 +1,28 @@
+# Binaries
+bin/
+dist/
+
+# Test / coverage
+coverage.out
+coverage.html
+*.test
+*.out
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.DS_Store
+
+# Local env
+.env
+.env.local
+*.local
+
+# Cache
+.cache/
+
+# Temp
+tmp/
+*.tmp
