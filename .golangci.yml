@@ -36,6 +36,11 @@ linters:
     rules:
       - path: _test\.go
         linters: [gosec, errcheck, unparam]
+      - path: pkg/docker/mock/
+        linters: [revive]
+      - path: pkg/docker/sdk\.go
+        text: "exported: exported method"
+        linters: [revive]
 
 formatters:
   enable:
