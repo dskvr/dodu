@@ -4,6 +4,7 @@ package mock
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/tyutyutyu/dodu/pkg/docker"
 )
@@ -37,6 +38,8 @@ type Client struct {
 
 	// CallCount tracks how many times each method has been invoked.
 	CallCount map[string]int
+
+	mu sync.Mutex
 }
 
 // New returns a mock Client with empty defaults.
@@ -45,6 +48,8 @@ func New() *Client {
 }
 
 func (c *Client) bump(name string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.CallCount == nil {
 		c.CallCount = map[string]int{}
 	}

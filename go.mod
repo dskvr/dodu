@@ -7,6 +7,8 @@ toolchain go1.23.4
 require (
 	github.com/docker/docker v27.5.1+incompatible
 	github.com/spf13/cobra v1.9.1
+	go.etcd.io/bbolt v1.3.11
+	golang.org/x/sync v0.11.0
 )
 
 require (

@@ -9,6 +9,9 @@
 - **Language:** Go 1.23+ (CI pinned to 1.23). Module `github.com/tyutyutyu/dodu`.
 - **Layout:** `cmd/dodu` (binary), `internal/{cli,tui}`, `pkg/{docker,scan,size,group,plan,cache,export}`, `test/integration` (`-tags=integration`).
 - **SDK isolation:** the Docker Engine SDK is imported **only** by `pkg/docker`. Everything else uses the `docker.Client` interface for testability.
+- **Mock concurrency:** `pkg/docker/mock.Client` is safe for concurrent use (mutex-protected `CallCount`); always run tests with `-race`.
+- **Snapshot is canonical:** `pkg/scan.Snapshot` is the single input shape consumed by `pkg/{size,group,cache,plan,export}`. Partial collector failures live in `Snapshot.Errors`, not as fatal returns.
+- **Cache keying:** `cache.Key(daemon)` = first 16 bytes of SHA-256 over `daemon.ID + "|" + ServerVersion`. Bump `cache.CurrentVersion` on any incompatible payload change.
 - **Disk-first focus:** features that don't help answer "what eats my disk?" or "what can I safely reclaim?" do not belong in the MVP.
 - **Honest sizing:** always distinguish `shared` vs. `exclusive` and surface an `Estimated` flag when uncertain.
 - **Safety:** every destructive operation defaults to dry-run; execute requires two-step confirmation; respect `DODU_READONLY=1`.

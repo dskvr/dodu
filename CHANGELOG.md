@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-01
+
+### Added
+- `pkg/scan`: parallel snapshot collector (`Scanner.Scan`) gathering images,
+  containers, volumes, build cache, and per-container log file sizes via
+  `errgroup`. Partial collector failures are recorded in `Snapshot.Errors`
+  rather than aborting; only ping or context cancellation aborts.
+  Configurable `LogConcurrency` (default 16) and `LogStatTimeout` (default 1s).
+- `pkg/size`: per-image accounting (`ImageSize{Total,Shared,Exclusive,
+  Estimated}`) honouring missing `SharedSize`; per-container accounting
+  (writable layer + log file); `ComputeTotals` aggregating images, containers,
+  volumes, build cache, logs, and a conservative reclaimable estimate; IEC/SI
+  human-readable size formatter.
+- `pkg/group`: navigable `Node` tree with `ByType` and `ByProject` builders
+  (compose project/service grouping with `<orphan>` bucket), bidirectional
+  refs (image↔containers, volume↔containers), and `Sort{BySize,ByName,
+  ByCount}`.
+- `pkg/cache`: bbolt-backed snapshot cache with gob encoding, daemon-keyed
+  hashing (`Key`), versioned entries with corruption fallback, and
+  `Policy.Fresh` TTL check (default 60s). Default path honours
+  `XDG_CACHE_HOME` then `~/.cache/dodu/snapshots.db`.
+
+### Fixed
+- `pkg/docker/mock`: race in `bump`/`CallCount` writes when invoked from
+  parallel goroutines (added mutex).
+
 ## [0.1.0] - 2026-05-01
 
 ### Added
@@ -39,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PLAN.md` with vision, KPIs, MVP scope, architecture, UX, and roadmap.
 - MIT license, `.gitignore`, `CHANGELOG.md`.
 
-[Unreleased]: https://github.com/tyutyutyu/dodu/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/tyutyutyu/dodu/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/tyutyutyu/dodu/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tyutyutyu/dodu/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/tyutyutyu/dodu/releases/tag/v0.0.1
