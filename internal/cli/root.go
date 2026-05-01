@@ -1,13 +1,12 @@
 // Package cli wires up the dodu Cobra command tree.
-//
-// The skeleton command exposes only `version` and a placeholder root that will
-// later launch the TUI. Subcommands (scan, prune, export, cache) are added in
-// later phases per docs at .github/prompts/09-cli.prompt.md.
 package cli
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
 )
@@ -19,29 +18,41 @@ type BuildInfo struct {
 	Date    string
 }
 
-// Execute runs the root command.
-func Execute(info BuildInfo) error {
+// Execute runs the root command and returns the process exit code.
+func Execute(info BuildInfo) int {
 	root := newRootCmd(info)
-	return root.Execute()
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+	if err := root.ExecuteContext(ctx); err != nil {
+		printErr(root, err)
+		return classifyExit(err)
+	}
+	return ExitOK
 }
 
 func newRootCmd(info BuildInfo) *cobra.Command {
+	flags := &rootFlags{}
 	root := &cobra.Command{
 		Use:   "dodu",
-		Short: "Docker disk atlas — ncdu-style TUI for Docker storage",
+		Short: "Docker disk atlas — ncdu-style TUI/CLI for Docker storage",
 		Long: "dodu is a fast, navigable TUI/CLI that shows what consumes disk in your\n" +
 			"Docker environment (images, containers, volumes, build cache, logs) and\n" +
 			"suggests safe, dry-run cleanup plans.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			// TUI launch lands here in phase 06. For now, print a hint.
-			_, err := fmt.Fprintln(cmd.OutOrStdout(), "dodu: TUI not implemented yet — see `dodu --help`.")
-			return err
+			return runTUI(cmd, flags)
 		},
 	}
+	attachPersistentFlags(root, flags)
 
-	root.AddCommand(newVersionCmd(info))
+	root.AddCommand(
+		newVersionCmd(info),
+		newScanCmd(info, flags),
+		newPruneCmd(flags),
+		newExportCmd(info, flags),
+		newCacheCmd(),
+	)
 	return root
 }
 

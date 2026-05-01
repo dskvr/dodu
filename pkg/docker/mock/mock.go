@@ -26,6 +26,9 @@ type Client struct {
 	PruneContainersFunc func(ctx context.Context, f docker.PruneFilters) (docker.PruneReport, error)
 	PruneVolumesFunc    func(ctx context.Context, f docker.PruneFilters) (docker.PruneReport, error)
 	PruneBuildCacheFunc func(ctx context.Context, f docker.PruneFilters) (docker.PruneReport, error)
+	RemoveImageFunc     func(ctx context.Context, id string, force, pruneChildren bool) (int64, error)
+	RemoveContainerFunc func(ctx context.Context, id string, force, removeVolumes bool) error
+	RemoveVolumeFunc    func(ctx context.Context, name string, force bool) error
 	CloseFunc           func() error
 
 	// Canned data used when the corresponding *Func is nil.
@@ -147,6 +150,30 @@ func (c *Client) PruneBuildCache(ctx context.Context, f docker.PruneFilters) (do
 		return c.PruneBuildCacheFunc(ctx, f)
 	}
 	return docker.PruneReport{}, nil
+}
+
+func (c *Client) RemoveImage(ctx context.Context, id string, force, pruneChildren bool) (int64, error) {
+	c.bump("RemoveImage")
+	if c.RemoveImageFunc != nil {
+		return c.RemoveImageFunc(ctx, id, force, pruneChildren)
+	}
+	return 0, nil
+}
+
+func (c *Client) RemoveContainer(ctx context.Context, id string, force, removeVolumes bool) error {
+	c.bump("RemoveContainer")
+	if c.RemoveContainerFunc != nil {
+		return c.RemoveContainerFunc(ctx, id, force, removeVolumes)
+	}
+	return nil
+}
+
+func (c *Client) RemoveVolume(ctx context.Context, name string, force bool) error {
+	c.bump("RemoveVolume")
+	if c.RemoveVolumeFunc != nil {
+		return c.RemoveVolumeFunc(ctx, name, force)
+	}
+	return nil
 }
 
 func (c *Client) Close() error {

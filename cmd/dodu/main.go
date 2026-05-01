@@ -2,7 +2,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/tyutyutyu/dodu/internal/cli"
@@ -16,8 +15,5 @@ var (
 )
 
 func main() {
-	if err := cli.Execute(cli.BuildInfo{Version: version, Commit: commit, Date: date}); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
-	}
+	os.Exit(cli.Execute(cli.BuildInfo{Version: version, Commit: commit, Date: date}))
 }

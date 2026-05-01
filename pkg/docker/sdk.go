@@ -357,6 +357,40 @@ type pruneOpt int
 
 const withDangling pruneOpt = 1
 
+// RemoveImage deletes an image by ID and returns reclaimed bytes.
+func (c *sdkClient) RemoveImage(ctx context.Context, id string, force, pruneChildren bool) (int64, error) {
+	resp, err := c.cli.ImageRemove(ctx, id, image.RemoveOptions{
+		Force:         force,
+		PruneChildren: pruneChildren,
+	})
+	if err != nil {
+		return 0, mapError(err)
+	}
+	// Docker doesn't return reclaimed bytes per-image; return 0 (caller uses estimate).
+	_ = resp
+	return 0, nil
+}
+
+// RemoveContainer deletes a container by ID.
+func (c *sdkClient) RemoveContainer(ctx context.Context, id string, force, removeVolumes bool) error {
+	err := c.cli.ContainerRemove(ctx, id, container.RemoveOptions{
+		Force:         force,
+		RemoveVolumes: removeVolumes,
+	})
+	if err != nil {
+		return mapError(err)
+	}
+	return nil
+}
+
+// RemoveVolume deletes a volume by name.
+func (c *sdkClient) RemoveVolume(ctx context.Context, name string, force bool) error {
+	if err := c.cli.VolumeRemove(ctx, name, force); err != nil {
+		return mapError(err)
+	}
+	return nil
+}
+
 func pruneArgs(f PruneFilters, opts ...pruneOpt) filters.Args {
 	args := filters.NewArgs()
 	for k, v := range f.Labels {

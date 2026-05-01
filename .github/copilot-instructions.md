@@ -15,6 +15,9 @@
 - **Disk-first focus:** features that don't help answer "what eats my disk?" or "what can I safely reclaim?" do not belong in the MVP.
 - **Honest sizing:** always distinguish `shared` vs. `exclusive` and surface an `Estimated` flag when uncertain.
 - **Safety:** every destructive operation defaults to dry-run; execute requires two-step confirmation; respect `DODU_READONLY=1`.
+- **CLI exit codes (`internal/cli`):** `0` ok, `1` general, `2` daemon unreachable, `3` read-only-denied. `cli.Execute` returns `int`; `cmd/dodu/main.go` calls `os.Exit(cli.Execute(...))`. Use `classifyExit(err)` to map errors → exit code.
+- **TUI (`internal/tui`):** Bubbletea model in `app.go` with `frame` stack for navigation; styles centralised in `styles.go`. The `runTUI` hook in `internal/cli/tui.go` is a `var` so tests can stub it.
+- **fmt.Fprint* in CLI paths:** suppress return values with `_, _ = fmt.Fprintf(...)` to satisfy errcheck. Use a local `fp := func(...)` helper when there are many writes (see `internal/cli/scan.go renderText`).
 
 ## Tooling
 

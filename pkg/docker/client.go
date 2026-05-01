@@ -45,6 +45,16 @@ type Client interface {
 	// PruneBuildCache removes build cache entries per filters.
 	PruneBuildCache(ctx context.Context, f PruneFilters) (PruneReport, error)
 
+	// RemoveImage deletes a single image by ID. force allows removal of images
+	// referenced by stopped containers; pruneChildren removes untagged parents.
+	RemoveImage(ctx context.Context, id string, force, pruneChildren bool) (int64, error)
+	// RemoveContainer deletes a single container by ID. force kills running ones
+	// (callers should not pass true unless the user explicitly opted in).
+	RemoveContainer(ctx context.Context, id string, force, removeVolumes bool) error
+	// RemoveVolume deletes a single volume by name. force is required if the
+	// daemon thinks the volume is in use.
+	RemoveVolume(ctx context.Context, name string, force bool) error
+
 	// Close releases any underlying resources.
 	Close() error
 }
