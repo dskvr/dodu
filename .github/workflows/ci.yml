@@ -34,3 +34,11 @@ jobs:
 
       - name: Run task verify
         run: task verify
+
+      - name: Isolated Alpine and vfs integration
+        if: runner.os == 'Linux'
+        run: sh test/integration/smoke.sh
+
+      - name: Slackware static binary smoke
+        if: runner.os == 'Linux'
+        run: docker run --rm --network none -v "$PWD/bin/dodu:/usr/local/bin/dodu:ro" vbatts/slackware:15.0 dodu version

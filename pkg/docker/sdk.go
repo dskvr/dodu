@@ -5,13 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/volume"
 	dockerclient "github.com/docker/docker/client"
 )
 
@@ -129,7 +130,9 @@ func (c *sdkClient) ListContainers(ctx context.Context, all bool) ([]Container, 
 }
 
 func (c *sdkClient) ListVolumes(ctx context.Context) ([]Volume, error) {
-	resp, err := c.cli.VolumeList(ctx, volume.ListOptions{})
+	resp, err := c.cli.DiskUsage(ctx, types.DiskUsageOptions{
+		Types: []types.DiskUsageObject{types.VolumeObject},
+	})
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -207,21 +210,27 @@ func (c *sdkClient) DiskUsage(ctx context.Context) (DiskUsage, error) {
 			continue
 		}
 		out.Images = append(out.Images, Image{
-			ID:         im.ID,
-			RepoTags:   im.RepoTags,
-			Created:    time.Unix(im.Created, 0),
-			Size:       im.Size,
-			SharedSize: im.SharedSize,
-			Containers: im.Containers,
-			Labels:     im.Labels,
-			ParentID:   im.ParentID,
+			RepoDigests: im.RepoDigests,
+			ID:          im.ID,
+			RepoTags:    im.RepoTags,
+			Created:     time.Unix(im.Created, 0),
+			Size:        im.Size,
+			SharedSize:  im.SharedSize,
+			Containers:  im.Containers,
+			Labels:      im.Labels,
+			ParentID:    im.ParentID,
 		})
 	}
 	for _, ct := range du.Containers {
 		if ct == nil {
 			continue
 		}
+		mounts := make([]ContainerMount, 0, len(ct.Mounts))
+		for _, m := range ct.Mounts {
+			mounts = append(mounts, ContainerMount{Type: string(m.Type), Name: m.Name, Source: m.Source, Destination: m.Destination, RW: m.RW})
+		}
 		out.Containers = append(out.Containers, Container{
+			Mounts:     mounts,
 			ID:         ct.ID,
 			Names:      ct.Names,
 			Image:      ct.Image,
@@ -283,7 +292,8 @@ func (c *sdkClient) LogFileSize(ctx context.Context, containerID string) (int64,
 	if err != nil {
 		return 0, mapError(err)
 	}
-	if insp.LogPath == "" {
+	// Paths returned by a remote daemon belong to that host, not this client.
+	if !strings.HasPrefix(c.cli.DaemonHost(), "unix://") || insp.ContainerJSONBase == nil || insp.LogPath == "" {
 		return 0, nil
 	}
 	st, err := os.Stat(insp.LogPath)
@@ -298,6 +308,9 @@ func (c *sdkClient) LogFileSize(ctx context.Context, containerID string) (int64,
 }
 
 func (c *sdkClient) PruneImages(ctx context.Context, f PruneFilters) (PruneReport, error) {
+	if len(f.IDs) > 0 {
+		return PruneReport{}, errors.New("ID filters are supported only for build cache; use individual remove operations")
+	}
 	args := pruneArgs(f, withDangling)
 	rep, err := c.cli.ImagesPrune(ctx, args)
 	if err != nil {
@@ -319,6 +332,9 @@ func (c *sdkClient) PruneImages(ctx context.Context, f PruneFilters) (PruneRepor
 }
 
 func (c *sdkClient) PruneContainers(ctx context.Context, f PruneFilters) (PruneReport, error) {
+	if len(f.IDs) > 0 {
+		return PruneReport{}, errors.New("ID filters are supported only for build cache; use individual remove operations")
+	}
 	rep, err := c.cli.ContainersPrune(ctx, pruneArgs(f))
 	if err != nil {
 		return PruneReport{}, mapError(err)
@@ -330,6 +346,9 @@ func (c *sdkClient) PruneContainers(ctx context.Context, f PruneFilters) (PruneR
 }
 
 func (c *sdkClient) PruneVolumes(ctx context.Context, f PruneFilters) (PruneReport, error) {
+	if len(f.IDs) > 0 {
+		return PruneReport{}, errors.New("ID filters are supported only for build cache; use individual remove operations")
+	}
 	rep, err := c.cli.VolumesPrune(ctx, pruneArgs(f))
 	if err != nil {
 		return PruneReport{}, mapError(err)
@@ -341,8 +360,24 @@ func (c *sdkClient) PruneVolumes(ctx context.Context, f PruneFilters) (PruneRepo
 }
 
 func (c *sdkClient) PruneBuildCache(ctx context.Context, f PruneFilters) (PruneReport, error) {
+	args := pruneArgs(f)
+	if len(f.IDs) > 0 {
+		ids := make([]string, 0, len(f.IDs))
+		for _, id := range f.IDs {
+			if id == "" {
+				return PruneReport{}, errors.New("empty build cache id")
+			}
+			ids = append(ids, regexp.QuoteMeta(id))
+		}
+		// Engine translates its single id filter into a BuildKit regular expression.
+		// Anchor and escape it so selection never widens to substring/regex matches.
+		args.Add("id", "^("+strings.Join(ids, "|")+")$")
+	}
 	rep, err := c.cli.BuildCachePrune(ctx, types.BuildCachePruneOptions{
-		Filters: pruneArgs(f),
+		Filters: args,
+		// Explicit selection includes internal/frontend/shared records; the exact
+		// ID filter still bounds deletion. Preserve default retention without IDs.
+		All: len(f.IDs) > 0,
 	})
 	if err != nil {
 		return PruneReport{}, mapError(err)

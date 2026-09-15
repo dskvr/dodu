@@ -1,57 +1,50 @@
 # Installing dodu
 
-`dodu` is a single statically-linked Go binary. There are no runtime dependencies
-beyond access to a Docker daemon socket.
+## Build this checkout
 
-## From a release archive
+Use Go 1.23 or newer:
 
-1. Download the archive matching your OS / arch from the
-   [GitHub Releases page](https://github.com/tyutyutyu/dodu/releases).
-2. Verify the checksum (recommended):
-
-   ```bash
-   sha256sum -c checksums.txt --ignore-missing
-   ```
-
-3. Extract and install:
-
-   ```bash
-   tar -xzf dodu_*_linux_amd64.tar.gz
-   sudo install -m 0755 dodu /usr/local/bin/dodu
-   dodu version
-   ```
-
-## From source (Go 1.23+)
-
-```bash
-git clone https://github.com/tyutyutyu/dodu.git
+```sh
+git clone https://github.com/dskvr/dodu.git
 cd dodu
-task build           # binary at ./bin/dodu
-# or:
-go install ./cmd/dodu@latest
+CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o bin/dodu ./cmd/dodu
+install -m 0755 bin/dodu "$HOME/.local/bin/dodu"
+dodu version
 ```
 
-## Permissions
+Create `$HOME/.local/bin` if necessary and include it in `PATH`. For a system-wide
+installation, install the binary to `/usr/local/bin` using your system's normal
+administrative privileges. No service or package manager is required.
 
-`dodu` only needs read access to the Docker socket for normal operation:
+On Alpine and Slackware/Unraid, use the static **Linux** binary for the host CPU.
+The same binary runs with musl or glibc because it links neither library.
+To cross-build, add `GOOS=linux GOARCH=arm64` (or `amd64`) to the build command.
+macOS builds use `GOOS=darwin` with either architecture.
 
-- Linux: ensure your user is in the `docker` group, or set `DOCKER_HOST`.
-- macOS: Docker Desktop's default socket works out of the box.
+## Docker access
 
-For destructive operations (`dodu prune --apply`), the same permissions are used.
+The client must be able to connect to the Docker API. Standard Linux installations
+use `/var/run/docker.sock`. For rootless Docker, point `--host` or `DOCKER_HOST`
+at its actual socket. For Docker Desktop, use its exposed host socket.
+Dodu does not read Docker CLI contexts automatically.
 
-## Read-only mode
+Docker socket access typically grants powerful daemon control; `--readonly` and
+`DODU_READONLY=1` constrain dodu's actions, not other clients of that socket.
+Remote TCP endpoints honor the Docker SDK's `DOCKER_HOST`, `DOCKER_TLS_VERIFY`,
+and `DOCKER_CERT_PATH` environment settings. SSH contexts are not implemented.
 
-To explicitly disable any destructive subcommand:
+## Filesystems
 
-```bash
-export DODU_READONLY=1
-dodu prune --apply --yes        # → exits 3 with "read-only mode" error
-```
+Scanning uses Docker's API and needs no access to Docker's data directory.
+An unavailable or unsuitable cache directory falls back to scanning. Use
+`--no-cache` to skip cache access entirely, or set `XDG_CACHE_HOME` to local storage.
+Audit logging for deletion requires a writable state directory (`XDG_STATE_HOME`).
+Exports require a writable destination. Filesystem-specific physical savings,
+remote log sizes, and unreported volume-plugin sizes cannot be inferred by dodu.
 
-## Uninstall
+## Distribution artifacts
 
-```bash
-sudo rm /usr/local/bin/dodu
-rm -rf ~/.cache/dodu ~/.local/state/dodu     # cache + audit log
-```
+The repository includes a GoReleaser configuration for static Linux and macOS
+amd64/arm64 archives with checksums. This work does not publish a release or
+install a Homebrew/Scoop package; build from the checkout until published artifacts
+are available at the fork's release page.

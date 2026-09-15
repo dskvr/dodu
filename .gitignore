@@ -26,3 +26,6 @@ coverage.html
 # Temp
 tmp/
 *.tmp
+
+# Local verification tools
+.task/bin/
