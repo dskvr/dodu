@@ -48,7 +48,13 @@ workflow link, platform list, and copy/paste Unraid installation commands.
 Release workflow directly, so it does not depend on tag events emitted by
 `GITHUB_TOKEN` starting another workflow.
 
-A successful build replaces the `nightly` tag and prerelease. It never becomes
+Before installing build tools, the shared workflow compares the selected commit
+with the last complete published nightly. An unchanged commit skips the build and
+publication, including manually triggered runs. Missing tags, missing releases,
+and incomplete uploads remain retryable. The comparison runs inside the existing
+per-tag concurrency group, so queued runs see the previous run's publication.
+
+A successful build of changed source replaces the `nightly` tag and prerelease. It never becomes
 the stable “latest” release. Archive names remain stable, for example:
 
 `dodu_nightly_linux_amd64.tar.gz`

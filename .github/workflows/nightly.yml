@@ -9,6 +9,7 @@ permissions:
   contents: write
 
 jobs:
+  # The shared workflow skips a complete nightly for the same source commit.
   release:
     uses: ./.github/workflows/release.yml
     with:
