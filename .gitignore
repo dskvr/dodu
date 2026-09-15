@@ -26,3 +26,11 @@ coverage.html
 # Temp
 tmp/
 *.tmp
+
+# Local verification tools
+.task/bin/
+
+# Generated release metadata
+/release-metadata.json
+/release-notes.md
+__pycache__/
