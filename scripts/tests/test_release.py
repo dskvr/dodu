@@ -54,6 +54,21 @@ class RepositoryCase(unittest.TestCase):
 
 
 class ReleaseMetadataTests(RepositoryCase):
+    def test_nightly_does_not_override_git_tag_before_first_release(self):
+        envfile = self.repo / "github-env"
+        self.env["GITHUB_ENV"] = str(envfile)
+        result = self.prepare("nightly")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("GORELEASER_CURRENT_TAG", envfile.read_text())
+
+    def test_stable_exports_validated_tag(self):
+        self.git("tag", "v0.1.0")
+        envfile = self.repo / "github-env"
+        self.env["GITHUB_ENV"] = str(envfile)
+        result = self.prepare("v0.1.0")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("GORELEASER_CURRENT_TAG=v0.1.0", envfile.read_text())
+
     def test_stable_tag_uses_exact_version_commit_and_notes(self):
         self.git("tag", "-a", "v0.1.0", "-m", "Release 0.1.0")
         result = self.prepare("v0.1.0")

@@ -90,8 +90,10 @@ def prepare(tag, output):
     meta = release_metadata(tag)
     Path(output).write_text(render_notes(meta))
     Path("release-metadata.json").write_text(json.dumps(meta, indent=2) + "\n")
-    env = {"DODU_BUILD_VERSION": meta["version"], "GORELEASER_CURRENT_TAG": "v" + meta["base_version"],
+    env = {"DODU_BUILD_VERSION": meta["version"],
            "DODU_RELEASE_TAG": tag, "DODU_RELEASE_CHANNEL": meta["channel"]}
+    if meta["channel"] == "stable":
+        env["GORELEASER_CURRENT_TAG"] = tag
     if os.environ.get("GITHUB_ENV"):
         with open(os.environ["GITHUB_ENV"], "a") as dest:
             dest.writelines(f"{key}={value}\n" for key, value in env.items())
