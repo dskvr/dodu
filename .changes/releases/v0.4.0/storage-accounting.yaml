@@ -1,0 +1,4 @@
+kind: Changed
+body: >-
+  Gather Docker storage usage through one disk-usage request instead of storage-driver internals; preserve scanning when cache storage is unavailable or unwritable.
+time: 2026-09-15T09:00:04Z

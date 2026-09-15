@@ -1,5 +1,32 @@
 # Installing dodu
 
+## Download a binary on Unraid / Linux x86-64
+
+No Go installation is needed. In Unraid's terminal:
+
+```sh
+(
+set -eu
+mkdir -p /tmp/dodu-download && cd /tmp/dodu-download
+curl -fLO https://github.com/dskvr/dodu/releases/download/v0.4.0/dodu_0.4.0_linux_amd64.tar.gz
+curl -fLO https://github.com/dskvr/dodu/releases/download/v0.4.0/checksums.txt
+grep '  dodu_0.4.0_linux_amd64.tar.gz$' checksums.txt | sha256sum -c -
+tar -xzf dodu_0.4.0_linux_amd64.tar.gz
+chmod +x dodu
+./dodu --readonly --no-cache scan
+./dodu --readonly
+)
+```
+
+For the rolling prerelease, replace `v0.4.0` with `nightly` in the URLs and
+`dodu_0.4.0_linux_amd64.tar.gz` with `dodu_nightly_linux_amd64.tar.gz` throughout.
+These commands use a temporary directory. For persistent installation, store the
+verified binary on your chosen persistent share and copy it to an executable
+location when needed. `--readonly` prevents deletion during testing.
+
+[Releases](https://github.com/dskvr/dodu/releases) also contain Linux arm64 and
+macOS amd64/arm64 archives. Each release has SHA-256 checksums and build provenance.
+
 ## Build this checkout
 
 Use Go 1.23 or newer:
@@ -44,7 +71,6 @@ remote log sizes, and unreported volume-plugin sizes cannot be inferred by dodu.
 
 ## Distribution artifacts
 
-The repository includes a GoReleaser configuration for static Linux and macOS
-amd64/arm64 archives with checksums. This work does not publish a release or
-install a Homebrew/Scoop package; build from the checkout until published artifacts
-are available at the fork's release page.
+Tag pushes publish stable releases; a scheduled workflow replaces the nightly
+prerelease. Every workflow can also be run manually. See [release maintenance](releasing.md)
+for change fragments, version preparation, and workflow details.

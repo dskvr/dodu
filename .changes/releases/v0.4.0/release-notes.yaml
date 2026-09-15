@@ -1,0 +1,4 @@
+kind: Added
+body: >-
+  Collect contributor-facing change fragments with Changie and prepare versioned release notes and VERSION together; retain the previous changelog history.
+time: 2026-09-15T09:00:03Z

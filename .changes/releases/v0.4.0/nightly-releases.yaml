@@ -1,0 +1,4 @@
+kind: Added
+body: >-
+  Build a scheduled or manually triggered nightly prerelease through the shared release workflow. Refresh the nightly tag and assets with detailed changes, commit identity, and verification metadata.
+time: 2026-09-15T09:00:02Z

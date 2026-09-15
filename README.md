@@ -4,6 +4,12 @@ Docker disk atlas: a terminal browser and CLI for images, containers, volumes,
 build cache, and readable local log files. Inspect storage, export snapshots,
 and preview cleanup before explicitly applying it.
 
+## Download
+
+Get a prebuilt binary from [Releases](https://github.com/dskvr/dodu/releases/latest)
+or the [nightly prerelease](https://github.com/dskvr/dodu/releases/tag/nightly).
+Go is not needed to run it. See [Unraid installation commands](docs/install.md).
+
 ## Build and run
 
 Requires Go 1.23 or newer to build and access to a Docker Engine to scan.
@@ -64,9 +70,9 @@ and `q` quits.
   Deletion failures return a nonzero exit status; reclaimed bytes are estimates
   except where Docker returns a measured value.
 
-See [installation](docs/install.md), [quickstart](docs/quickstart.md), and
+See [installation](docs/install.md), [quickstart](docs/quickstart.md), [releasing](docs/releasing.md), and
 [verification](docs/verification.md). [PLAN.md](PLAN.md) and phase prompts preserve
-the original roadmap; their release and performance targets are not guarantees.
+the original roadmap; their original design and performance targets are not guarantees.
 
 ## Development
 

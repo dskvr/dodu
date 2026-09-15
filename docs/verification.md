@@ -58,6 +58,8 @@ reclaim can differ on compressed, reflinked, sparse, snapshotting, or remote sto
 Logs inaccessible to the client and unsupported volume-plugin accounting are
 unmeasured, not proof of zero physical consumption.
 
-Release publication, package repositories, screenshots, and universal performance
-SLAs are roadmap work; no release or remote CI success is claimed by this local
-verification. The runnable binary is `bin/dodu`.
+Release publication and artifact generation are now handled by the shared
+[release workflows](releasing.md). The table above records functional validation;
+native runtime coverage and filesystem limits still apply to published binaries.
+Package repositories, screenshots, and universal performance SLAs remain roadmap
+work. A local build is available at `bin/dodu`.
