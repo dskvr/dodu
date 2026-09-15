@@ -58,7 +58,7 @@ changelog:
 
 release:
   github:
-    owner: tyutyutyu
+    owner: dskvr
     name: dodu
   draft: false
   prerelease: auto
