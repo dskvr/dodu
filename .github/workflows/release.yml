@@ -29,7 +29,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  changes:
+    name: Check for unpublished changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      publish: ${{ steps.decision.outputs.publish }}
+      commit: ${{ steps.decision.outputs.commit }}
+    steps:
+      - name: Checkout candidate source and nightly tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag == 'nightly' && (inputs.source_ref || github.sha) || inputs.tag || github.ref }}
+          fetch-depth: 0
+      - name: Compare with the last published nightly
+        id: decision
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          # Historical stable tags may predate the nightly comparison helper.
+          if [[ "$RELEASE_TAG" != nightly ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          else
+            python3 scripts/release.py should-publish "$RELEASE_TAG"
+          fi
+
   release:
+    needs: changes
+    if: needs.changes.outputs.publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -42,7 +72,7 @@ jobs:
       - name: Checkout release source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag == 'nightly' && (inputs.source_ref || github.sha) || inputs.tag || github.ref }}
+          ref: ${{ needs.changes.outputs.commit }}
           fetch-depth: 0
 
       - name: Set up Go

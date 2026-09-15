@@ -133,6 +133,44 @@ def verify_assets(dist, meta):
     print("Verified all four release archives and wrote build provenance.")
 
 
+def publication_needed(tag, commit):
+    if tag != "nightly":
+        if not STABLE_TAG.fullmatch(tag):
+            raise ValueError("tag must be nightly or vMAJOR.MINOR.PATCH")
+        return True, "Stable release requested."
+    previous = subprocess.run(["git", "rev-parse", "--verify", "--quiet", "refs/tags/nightly^{commit}"],
+                              text=True, capture_output=True)
+    if previous.returncode or previous.stdout.strip() != commit:
+        return True, "Source differs from the nightly tag, or no nightly tag exists."
+    repo = os.environ["GH_REPO"]
+    response = subprocess.run(["gh", "api", "--include", f"repos/{repo}/releases/tags/nightly"],
+                              text=True, capture_output=True)
+    headers, _, body = response.stdout.partition("\n\n")
+    status = re.match(r"HTTP/\S+ (\d+)", headers)
+    if status and status[1] == "404":
+        return True, "Nightly tag exists without a published release; retrying."
+    if response.returncode or not status or status[1] != "200":
+        raise RuntimeError("Cannot check the previous nightly release: " + response.stderr)
+    release = json.loads(body)
+    required = {f"dodu_nightly_{platform}.tar.gz" for platform in PLATFORMS} | {"checksums.txt", "build-info.json"}
+    uploaded = {asset["name"] for asset in release["assets"] if asset["state"] == "uploaded" and asset["size"] > 0}
+    if release["draft"] or release["target_commitish"] != commit or not required <= uploaded:
+        return True, "Previous nightly publication is incomplete; retrying."
+    return False, f"No changes since the published nightly ({commit}); skipping build and publication."
+
+
+def should_publish(tag):
+    commit = git("rev-parse", "HEAD")
+    publish, reason = publication_needed(tag, commit)
+    if os.environ.get("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a") as dest:
+            dest.write(f"publish={str(publish).lower()}\ncommit={commit}\n")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as dest:
+            dest.write(reason + "\n")
+    print(json.dumps({"publish": publish, "commit": commit, "reason": reason}))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -141,9 +179,13 @@ def main():
     prep.add_argument("--output", default="release-notes.md")
     check = sub.add_parser("verify-assets")
     check.add_argument("--dist", default="dist")
+    decision = sub.add_parser("should-publish")
+    decision.add_argument("tag")
     args = parser.parse_args()
     if args.command == "prepare":
         prepare(args.tag, args.output)
+    elif args.command == "should-publish":
+        should_publish(args.tag)
     else:
         verify_assets(args.dist, json.loads(Path("release-metadata.json").read_text()))
 

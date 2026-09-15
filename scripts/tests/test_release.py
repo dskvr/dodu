@@ -392,5 +392,76 @@ class PublicationTests(RepositoryCase):
                 self.assertFalse((self.repo / "INJECTED").exists())
 
 
+class NightlyChangeTests(RepositoryCase):
+    def setUp(self):
+        super().setUp()
+        self.git("tag", "nightly")
+        self.release = {"target_commitish": self.git("rev-parse", "HEAD"), "draft": False,
+                        "prerelease": True, "assets": [
+                            {"name": name, "state": "uploaded", "size": 1} for name in
+                            [f"dodu_nightly_{p}.tar.gz" for p in PLATFORMS] + ["checksums.txt", "build-info.json"]]}
+        mockbin = self.repo / "mock-bin"
+        mockbin.mkdir()
+        mock = mockbin / "gh"
+        mock.write_text("#!/usr/bin/env python3\nimport os\nfrom pathlib import Path\n"
+                        "print('HTTP/2.0 ' + os.environ.get('MOCK_STATUS', '200') + ' status\\n')\n"
+                        "print(Path(os.environ['MOCK_RELEASE']).read_text())\n")
+        mock.chmod(0o755)
+        self.payload = self.repo / "mock-release.json"
+        self.output = self.repo / "github-output"
+        self.env.update({"PATH": str(mockbin) + os.pathsep + self.env["PATH"],
+                         "GH_REPO": "example/dodu", "MOCK_RELEASE": str(self.payload),
+                         "GITHUB_OUTPUT": str(self.output)})
+
+    def decision(self, tag="nightly"):
+        self.payload.write_text(json.dumps(self.release))
+        return self.run_command(sys.executable, str(RELEASE), "should-publish", tag)
+
+    def assertDecision(self, expected):
+        result = self.decision()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["publish"], expected)
+        self.assertIn(f"publish={str(expected).lower()}", self.output.read_text())
+
+    def test_unchanged_complete_nightly_is_skipped(self):
+        self.assertDecision(False)
+
+    def test_new_commit_is_published(self):
+        self.commit("New source change")
+        self.assertDecision(True)
+
+    def test_first_nightly_is_published(self):
+        self.git("tag", "-d", "nightly")
+        self.assertDecision(True)
+
+    def test_annotated_nightly_is_compared_to_commit(self):
+        self.git("tag", "-f", "-a", "nightly", "-m", "Nightly")
+        self.assertDecision(False)
+
+    def test_incomplete_publication_can_retry_unchanged_commit(self):
+        for update in ({"draft": True}, {"assets": []}, {"target_commitish": "older"}):
+            with self.subTest(update=update):
+                original = self.release.copy()
+                self.release.update(update)
+                self.assertDecision(True)
+                self.release = original
+
+    def test_tag_without_release_can_retry(self):
+        self.env["MOCK_STATUS"] = "404"
+        self.assertDecision(True)
+
+    def test_api_errors_fail_instead_of_reporting_unchanged(self):
+        self.env["MOCK_STATUS"] = "403"
+        result = self.decision()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(self.output.exists())
+
+    def test_stable_release_is_not_skipped(self):
+        self.env["MOCK_STATUS"] = "403"
+        result = self.decision("v0.1.0")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(json.loads(result.stdout)["publish"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -8,7 +8,7 @@ and preview cleanup before explicitly applying it.
 
 Get a prebuilt binary from [Releases](https://github.com/dskvr/dodu/releases/latest)
 or the [nightly prerelease](https://github.com/dskvr/dodu/releases/tag/nightly).
-Go is not needed to run it. See [Unraid installation commands](docs/install.md).
+Go is not needed to run it.
 
 ## Build and run
 
@@ -23,7 +23,7 @@ CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o bin/dodu ./cmd/dodu
 ```
 
 The static Linux binary has no libc, package-manager, or init-system dependency.
-It can run on Alpine, Slackware/Unraid, and other Linux distributions of the
+It can run on Alpine, Slackware, and other Linux distributions of the
 matching architecture. Docker reports storage sizes through its API; dodu does
 not read overlay2, Btrfs, ZFS, XFS, or other driver internals. The cache is optional
 and scanning continues if the cache filesystem cannot support it.
