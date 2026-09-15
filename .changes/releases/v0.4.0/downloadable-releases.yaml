@@ -1,0 +1,4 @@
+kind: Added
+body: >-
+  Publish versioned Linux and macOS archives for amd64 and arm64, SHA-256 checksums, and build provenance through a manually runnable tag-release workflow. Static Linux binaries run without Go or a libc dependency, including on Alpine and Slackware/Unraid systems.
+time: 2026-09-15T09:00:01Z

@@ -1,0 +1,4 @@
+kind: Fixed
+body: >-
+  Correct volume and shared-image accounting, duplicated log totals, and cache lock retention. Scope build-cache cleanup to selected records, protect active containers, and propagate audit and deletion failures.
+time: 2026-09-15T09:00:05Z
