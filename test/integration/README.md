@@ -17,7 +17,7 @@ All scan and cleanup commands run inside a disposable Docker daemon with the
 and no ports are published. The exit trap removes only the daemon container
 created by this run and its anonymous volumes.
 
-Checks cover nonzero volume accounting, JSON scan, dry-run preservation,
+Checks cover nonzero volume accounting, unmeasured NFS volume inventory, JSON scan, dry-run preservation,
 readonly refusal, removal of a stopped container and unused volume,
 preservation of a running container and its mounted data, audit output, and
 JSON export after cleanup. A nonzero exit indicates failure and prints nested

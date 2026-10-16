@@ -2,6 +2,8 @@ package tui
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -37,6 +39,34 @@ func TestGroupingAndSortPreserveObjectSelection(t *testing.T) {
 		if selected == nil || selected.Meta["id"] != "image-1" {
 			t.Fatalf("selection lost after %s: %+v", k, selected)
 		}
+	}
+}
+
+func TestBuildCacheMarksSurviveLayoutChanges(t *testing.T) {
+	m := fixtureModel()
+	m.snap = &scan.Snapshot{BuildCache: []docker.BuildCacheEntry{{ID: "cache-1", Size: 100}}}
+	m.rebuildTree()
+	m.restoreSelection(&group.Node{Kind: group.KindBuildCache, Meta: map[string]string{"id": "cache-1"}})
+	key(m, "d")
+	key(m, "g")
+	selected := m.selectedNode()
+	if selected == nil || selected.Meta["id"] != "cache-1" {
+		t.Fatalf("cache selection lost in project layout: %+v", selected)
+	}
+	key(m, "p")
+	if len(m.preview.Items) != 1 || m.preview.Items[0].ID != "cache-1" {
+		t.Fatalf("cache mark lost in project layout: %+v", m.preview)
+	}
+	_, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	key(m, "d")
+	if len(m.marks) != 0 {
+		t.Fatal("cannot unmark cache in project layout")
+	}
+	key(m, "d")
+	key(m, "g")
+	key(m, "p")
+	if len(m.preview.Items) != 1 || m.preview.Items[0].ID != "cache-1" {
+		t.Fatalf("project-layout cache mark lost in type layout: %+v", m.preview)
 	}
 }
 
@@ -118,6 +148,67 @@ func TestHelpCannotPrepareHiddenCleanup(t *testing.T) {
 	if len(m.marks) > 0 || m.preview != nil || m.preparing || m.executing {
 		t.Fatal("help allowed invisible planner actions")
 	}
+}
+
+func TestHiddenPlannerCannotAcceptCleanupKeys(t *testing.T) {
+	for _, screen := range []string{"loading", "error"} {
+		for _, confirming := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/confirming=%t", screen, confirming), func(t *testing.T) {
+				m := fixtureModel()
+				m.preview = &plan.Plan{Items: []plan.Item{{Kind: group.KindImage, ID: "safe"}}}
+				m.confirming = confirming
+				m.loading = screen == "loading"
+				if screen == "error" {
+					m.err = errors.New("temporary scan failure")
+				}
+				for _, k := range []string{"d", "p", "x", "yes"} {
+					if key(m, k) != nil {
+						t.Fatalf("hidden planner dispatched %s", k)
+					}
+				}
+				_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+				if cmd != nil || m.preparing || m.executing || m.confirmation != "" || len(m.marks) != 0 {
+					t.Fatal("hidden planner accepted cleanup input")
+				}
+			})
+		}
+	}
+}
+
+func TestFailedScanRequiresSuccessfulRetryBeforeCleanup(t *testing.T) {
+	m := fixtureModel()
+	m.snap = &scan.Snapshot{Containers: []docker.Container{{ID: "stopped", State: "exited"}}}
+	m.rebuildTree()
+	m.restoreSelection(&group.Node{Kind: group.KindContainer, Meta: map[string]string{"id": "stopped"}})
+	key(m, "d")
+	key(m, "r")
+	m.Update(scanDoneMsg{err: errors.New("temporary scan failure")})
+	key(m, "p")
+	if m.preview != nil {
+		t.Fatal("error screen opened a hidden plan")
+	}
+	if key(m, "r") == nil {
+		t.Fatal("error screen cannot retry scan")
+	}
+	if key(m, "r") != nil {
+		t.Fatal("loading screen started another scan")
+	}
+	m.Update(scanDoneMsg{snap: m.snap})
+	key(m, "p")
+	if key(m, "x") == nil {
+		t.Fatal("successful retry cannot prepare cleanup")
+	}
+	defer m.operationCancel()
+	m.Update(prepareDoneMsg{snap: m.snap})
+	if !strings.Contains(m.View(), "Type yes") {
+		t.Fatal("cleanup confirmation is hidden after recovery")
+	}
+	key(m, "yes")
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd == nil || !m.executing {
+		t.Fatal("visible confirmation cannot execute cleanup")
+	}
+	m.operationCancel()
 }
 
 func TestInterruptWaitsForOperationBeforeQuit(t *testing.T) {

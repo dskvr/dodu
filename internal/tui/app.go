@@ -111,6 +111,14 @@ func (m *Model) scanCmd() tea.Cmd {
 	}
 }
 
+func (m *Model) startScan() tea.Cmd {
+	m.loading = true
+	m.loadStarted = time.Now()
+	m.err = nil
+	m.status = "rescanning…"
+	return m.scanCmd()
+}
+
 // Update handles input and async messages.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -183,6 +191,20 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Quit
 	}
+	if m.executing || m.preparing {
+		return m, nil
+	}
+	if m.loading || m.err != nil {
+		switch msg.String() {
+		case "q":
+			return m, tea.Quit
+		case "r":
+			if !m.loading {
+				return m, m.startScan()
+			}
+		}
+		return m, nil
+	}
 	if m.help {
 		switch msg.String() {
 		case "?", "esc":
@@ -190,9 +212,6 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "q":
 			return m, tea.Quit
 		}
-		return m, nil
-	}
-	if m.executing || m.preparing {
 		return m, nil
 	}
 	if m.confirming {
@@ -253,11 +272,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.help = !m.help
 		return m, nil
 	case "r":
-		m.loading = true
-		m.loadStarted = time.Now()
-		m.err = nil
-		m.status = "rescanning…"
-		return m, m.scanCmd()
+		return m, m.startScan()
 	case "tab":
 		m.hideDetails = !m.hideDetails
 	case "d", " ":

@@ -26,22 +26,66 @@ func testSDK(t *testing.T, handler http.HandlerFunc) *sdkClient {
 	return &sdkClient{cli: cli}
 }
 
-func TestListVolumesUsesDaemonDiskUsage(t *testing.T) {
+func TestVolumeInventoryPreservesUnmeasuredVolumes(t *testing.T) {
+	for _, method := range []string{"ListVolumes", "DiskUsage"} {
+		t.Run(method, func(t *testing.T) {
+			c := testSDK(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/v1.47/system/df":
+					if method == "ListVolumes" && r.URL.Query().Get("type") != "volume" {
+						t.Errorf("unexpected usage request %s", r.URL)
+					}
+					fmt.Fprint(w, `{"Volumes":[null,{"Name":"data","UsageData":{"Size":12345,"RefCount":2}}]}`)
+				case "/v1.47/volumes":
+					fmt.Fprint(w, `{"Volumes":[null,{"Name":"external","Driver":"plugin"},{"Name":"nfs","Driver":"local","Mountpoint":"/volumes/nfs","Scope":"local","Labels":{"project":"example"},"Options":{"type":"nfs"}},{"Name":"data","Driver":"local"}]}`)
+				default:
+					t.Errorf("unexpected request %s", r.URL)
+					http.Error(w, "wrong endpoint", http.StatusNotFound)
+				}
+			})
+			var volumes []Volume
+			var err error
+			if method == "ListVolumes" {
+				volumes, err = c.ListVolumes(context.Background())
+			} else {
+				var usage DiskUsage
+				usage, err = c.DiskUsage(context.Background())
+				volumes = usage.Volumes
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(volumes) != 3 {
+				t.Fatalf("volume inventory = %+v", volumes)
+			}
+			for _, v := range volumes {
+				if v.Name == "data" {
+					if v.UsageBytes != 12345 || v.RefCount != 2 || v.Driver != "local" {
+						t.Fatalf("measured volume = %+v", v)
+					}
+				} else if v.UsageBytes != -1 || v.RefCount != -1 {
+					t.Fatalf("unmeasured volume = %+v", v)
+				}
+				if v.Name == "nfs" && (v.Mountpoint != "/volumes/nfs" || v.Scope != "local" || v.Labels["project"] != "example") {
+					t.Fatalf("missing volume metadata: %+v", v)
+				}
+			}
+		})
+	}
+}
+
+func TestDiskUsageRequiresCompleteVolumeInventory(t *testing.T) {
 	c := testSDK(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1.47/system/df" || r.URL.Query().Get("type") != "volume" {
-			t.Errorf("unexpected request %s", r.URL.String())
-			http.Error(w, "wrong endpoint", http.StatusNotFound)
+		if r.URL.Path == "/v1.47/volumes" {
+			http.Error(w, `{"message":"inventory unavailable"}`, http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"Volumes":[{"Name":"data","Driver":"local","UsageData":{"Size":12345,"RefCount":2}},{"Name":"external","Driver":"plugin"}]}`)
+		fmt.Fprint(w, `{"Volumes":[{"Name":"data","UsageData":{"Size":12345,"RefCount":2}}]}`)
 	})
-	volumes, err := c.ListVolumes(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(volumes) != 2 || volumes[0].UsageBytes != 12345 || volumes[0].RefCount != 2 || volumes[1].UsageBytes != -1 {
-		t.Fatalf("volumes = %+v", volumes)
+	if _, err := c.DiskUsage(context.Background()); err == nil {
+		t.Fatal("incomplete volume inventory was accepted")
 	}
 }
 
@@ -113,6 +157,10 @@ func TestPruneRejectsUnsupportedIDFiltersWithoutRequest(t *testing.T) {
 func TestDiskUsagePreservesGroupingMetadata(t *testing.T) {
 	c := testSDK(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/v1.47/volumes" {
+			fmt.Fprint(w, `{"Volumes":[]}`)
+			return
+		}
 		fmt.Fprint(w, `{"LayersSize":42,"Images":[{"Id":"image","RepoDigests":["app@sha256:digest"]}],"Containers":[{"Id":"container","Mounts":[{"Type":"volume","Name":"data","Source":"/arbitrary/storage/data","Destination":"/data","RW":true}]}]}`)
 	})
 	usage, err := c.DiskUsage(context.Background())

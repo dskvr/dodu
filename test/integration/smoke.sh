@@ -57,6 +57,10 @@ unset DODU_READONLY
 docker pull alpine:3.21 >/dev/null
 docker volume create dodu-smoke-used >/dev/null
 docker volume create dodu-smoke-unused >/dev/null
+# Creating an unmounted NFS volume needs no reachable NFS server. Docker's
+# disk-usage endpoint omits it, but it must remain in dodu's inventory.
+docker volume create --driver local --opt type=nfs --opt o=addr=127.0.0.1 \
+    --opt device=:/dodu-smoke dodu-smoke-nfs >/dev/null
 docker run --rm -v dodu-smoke-unused:/data alpine:3.21 \
     sh -c 'dd if=/dev/zero of=/data/payload bs=1024 count=64 2>/dev/null'
 docker run --name dodu-smoke-stopped alpine:3.21 \
@@ -66,6 +70,7 @@ docker run -d --name dodu-smoke-running -v dodu-smoke-used:/data alpine:3.21 \
 
 dodu --no-cache scan --format csv-volumes > /tmp/volumes.csv
 awk -F, '$1 == "dodu-smoke-unused" && $4 >= 65536 { found=1 } END { exit !found }' /tmp/volumes.csv
+awk -F, '$1 == "dodu-smoke-nfs" && $4 == -1 { found=1 } END { exit !found }' /tmp/volumes.csv
 
 dodu --no-cache scan --json > /tmp/scan.json
 grep -q '"schema_version"' /tmp/scan.json
@@ -99,6 +104,7 @@ docker exec dodu-smoke-running test -s /data/payload
 dodu --no-cache export /tmp/result.json
 grep -q '"schema_version"' /tmp/result.json
 grep -q 'dodu-smoke-running' /tmp/result.json
+grep -q 'dodu-smoke-nfs' /tmp/result.json
 if grep -Eq 'dodu-smoke-stopped|dodu-smoke-unused' /tmp/result.json; then
     echo 'Export still contains removed objects.' >&2; exit 1
 fi

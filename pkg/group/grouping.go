@@ -270,6 +270,7 @@ func ByProject(snap *scan.Snapshot) *Node {
 			Name: buildCacheDisplayName(b.Description, b.ID),
 			Kind: KindBuildCache,
 			Size: size.ImageSize{Total: b.Size, Exclusive: b.Size},
+			Meta: map[string]string{"id": b.ID},
 		})
 	}
 

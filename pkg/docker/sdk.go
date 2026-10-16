@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/volume"
 	dockerclient "github.com/docker/docker/client"
 )
 
@@ -136,6 +137,22 @@ func (c *sdkClient) ListVolumes(ctx context.Context) ([]Volume, error) {
 	if err != nil {
 		return nil, mapError(err)
 	}
+	return c.volumesWithUsage(ctx, resp.Volumes)
+}
+
+// Disk usage omits plugin volumes and local volumes with mount options. Keep
+// the full inventory and enrich only entries with measured usage.
+func (c *sdkClient) volumesWithUsage(ctx context.Context, measured []*volume.Volume) ([]Volume, error) {
+	resp, err := c.cli.VolumeList(ctx, volume.ListOptions{})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	usageByName := make(map[string]*volume.UsageData, len(measured))
+	for _, v := range measured {
+		if v != nil {
+			usageByName[v.Name] = v.UsageData
+		}
+	}
 	out := make([]Volume, 0, len(resp.Volumes))
 	for _, v := range resp.Volumes {
 		if v == nil {
@@ -145,9 +162,9 @@ func (c *sdkClient) ListVolumes(ctx context.Context) ([]Volume, error) {
 			usage    int64 = -1
 			refCount int64 = -1
 		)
-		if v.UsageData != nil {
-			usage = v.UsageData.Size
-			refCount = v.UsageData.RefCount
+		if data := usageByName[v.Name]; data != nil {
+			usage = data.Size
+			refCount = data.RefCount
 		}
 		created, _ := time.Parse(time.RFC3339, v.CreatedAt)
 		out = append(out, Volume{
@@ -205,6 +222,10 @@ func (c *sdkClient) DiskUsage(ctx context.Context) (DiskUsage, error) {
 		return DiskUsage{}, mapError(err)
 	}
 	out := DiskUsage{LayersSize: du.LayersSize}
+	out.Volumes, err = c.volumesWithUsage(ctx, du.Volumes)
+	if err != nil {
+		return DiskUsage{}, err
+	}
 	for _, im := range du.Images {
 		if im == nil {
 			continue
@@ -241,27 +262,6 @@ func (c *sdkClient) DiskUsage(ctx context.Context) (DiskUsage, error) {
 			SizeRw:     ct.SizeRw,
 			SizeRootFs: ct.SizeRootFs,
 			Labels:     ct.Labels,
-		})
-	}
-	for _, v := range du.Volumes {
-		if v == nil {
-			continue
-		}
-		var usage, refs int64 = -1, -1
-		if v.UsageData != nil {
-			usage = v.UsageData.Size
-			refs = v.UsageData.RefCount
-		}
-		created, _ := time.Parse(time.RFC3339, v.CreatedAt)
-		out.Volumes = append(out.Volumes, Volume{
-			Name:       v.Name,
-			Driver:     v.Driver,
-			Mountpoint: v.Mountpoint,
-			Scope:      v.Scope,
-			CreatedAt:  created,
-			Labels:     v.Labels,
-			UsageBytes: usage,
-			RefCount:   refs,
 		})
 	}
 	for _, b := range du.BuildCache {
