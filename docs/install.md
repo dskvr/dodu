@@ -8,8 +8,8 @@ No Go installation is needed. In Unraid's terminal:
 (
 set -eu
 mkdir -p /tmp/dodu-download && cd /tmp/dodu-download
-curl -fLO https://github.com/dskvr/dodu/releases/download/v0.4.0/dodu_0.4.0_linux_amd64.tar.gz
-curl -fLO https://github.com/dskvr/dodu/releases/download/v0.4.0/checksums.txt
+curl -fLO https://github.com/tyutyutyu/dodu/releases/download/v0.4.0/dodu_0.4.0_linux_amd64.tar.gz
+curl -fLO https://github.com/tyutyutyu/dodu/releases/download/v0.4.0/checksums.txt
 grep '  dodu_0.4.0_linux_amd64.tar.gz$' checksums.txt | sha256sum -c -
 tar -xzf dodu_0.4.0_linux_amd64.tar.gz
 chmod +x dodu
@@ -24,7 +24,7 @@ These commands use a temporary directory. For persistent installation, store the
 verified binary on your chosen persistent share and copy it to an executable
 location when needed. `--readonly` prevents deletion during testing.
 
-[Releases](https://github.com/dskvr/dodu/releases) also contain Linux arm64 and
+[Releases](https://github.com/tyutyutyu/dodu/releases) also contain Linux arm64 and
 macOS amd64/arm64 archives. Each release has SHA-256 checksums and build provenance.
 
 ## Build this checkout
@@ -32,7 +32,7 @@ macOS amd64/arm64 archives. Each release has SHA-256 checksums and build provena
 Use Go 1.23 or newer:
 
 ```sh
-git clone https://github.com/dskvr/dodu.git
+git clone https://github.com/tyutyutyu/dodu.git
 cd dodu
 CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o bin/dodu ./cmd/dodu
 install -m 0755 bin/dodu "$HOME/.local/bin/dodu"

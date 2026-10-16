@@ -44,7 +44,7 @@ def release_metadata(tag):
 
 
 def render_notes(meta):
-    repo = os.environ.get("GITHUB_REPOSITORY", "dskvr/dodu")
+    repo = os.environ.get("GITHUB_REPOSITORY", "tyutyutyu/dodu")
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
         raise ValueError("invalid GitHub repository")
     base = f"https://github.com/{repo}"
@@ -123,7 +123,7 @@ def verify_assets(dist, meta):
     for name, digest in recorded.items():
         if hashlib.sha256((dist / name).read_bytes()).hexdigest() != digest:
             raise ValueError(f"checksum mismatch: {name}")
-    manifest = dict(meta, repository=os.environ.get("GITHUB_REPOSITORY", "dskvr/dodu"),
+    manifest = dict(meta, repository=os.environ.get("GITHUB_REPOSITORY", "tyutyutyu/dodu"),
                     run_id=os.environ.get("GITHUB_RUN_ID", "local"), artifacts=recorded)
     manifest["built_at"] = build["date"]
     data = (json.dumps(manifest, indent=2) + "\n").encode()

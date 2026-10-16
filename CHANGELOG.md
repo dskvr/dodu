@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 New changes are collected in [`.changes/unreleased`](.changes/unreleased) until the next release.
 
-## [0.4.0](https://github.com/dskvr/dodu/releases/tag/v0.4.0) - 2026-09-15
+## [0.4.0](https://github.com/tyutyutyu/dodu/releases/tag/v0.4.0) - 2026-09-15
 
 ### Added
 
@@ -24,7 +24,7 @@ New changes are collected in [`.changes/unreleased`](.changes/unreleased) until 
 
 - Correct volume and shared-image accounting, duplicated log totals, and cache lock retention. Scope build-cache cleanup to selected records, protect active containers, and propagate audit and deletion failures.
 
-**Full changelog:** [Changes since the 0.3.0 source snapshot](https://github.com/dskvr/dodu/compare/3b9167939fd0eba58dd68ebd40d722e8f05ea020...v0.4.0)
+**Full changelog:** [Changes since the 0.3.0 source snapshot](https://github.com/tyutyutyu/dodu/compare/3b9167939fd0eba58dd68ebd40d722e8f05ea020...v0.4.0)
 
 ## [0.3.0] - 2026-05-01
 

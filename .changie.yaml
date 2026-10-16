@@ -4,10 +4,10 @@ unreleasedDir: unreleased
 headerPath: header.tpl.md
 changelogPath: CHANGELOG.md
 versionExt: md
-versionFormat: '## [{{.VersionNoPrefix}}](https://github.com/dskvr/dodu/releases/tag/{{.Version}}) - {{.Time.Format "2006-01-02"}}'
+versionFormat: '## [{{.VersionNoPrefix}}](https://github.com/tyutyutyu/dodu/releases/tag/{{.Version}}) - {{.Time.Format "2006-01-02"}}'
 kindFormat: '### {{.Kind}}'
 changeFormat: '- {{.Body}}'
-footerFormat: '**Full changelog:** [{{.PreviousVersion}}...{{.Version}}](https://github.com/dskvr/dodu/compare/{{.PreviousVersion}}...{{.Version}})'
+footerFormat: '**Full changelog:** [{{.PreviousVersion}}...{{.Version}}](https://github.com/tyutyutyu/dodu/compare/{{.PreviousVersion}}...{{.Version}})'
 kinds:
   - label: Added
     auto: minor

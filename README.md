@@ -6,8 +6,8 @@ and preview cleanup before explicitly applying it.
 
 ## Download
 
-Get a prebuilt binary from [Releases](https://github.com/dskvr/dodu/releases/latest)
-or the [nightly prerelease](https://github.com/dskvr/dodu/releases/tag/nightly).
+Get a prebuilt binary from [Releases](https://github.com/tyutyutyu/dodu/releases/latest)
+or the [nightly prerelease](https://github.com/tyutyutyu/dodu/releases/tag/nightly).
 Go is not needed to run it.
 
 ## Build and run
@@ -15,7 +15,7 @@ Go is not needed to run it.
 Requires Go 1.23 or newer to build and access to a Docker Engine to scan.
 
 ```sh
-git clone https://github.com/dskvr/dodu.git
+git clone https://github.com/tyutyutyu/dodu.git
 cd dodu
 CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o bin/dodu ./cmd/dodu
 ./bin/dodu scan
